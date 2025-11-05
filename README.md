@@ -1,2 +1,2 @@
 # H2-No
-An interactive 3D data visualization built with Plotly.js. This H2-No bar chart demo showcases beverage categories (coffee, tea, juice, and soda) with a color palette selected for accessibility and contrast.
+An interactive D3.js demo pie chart for everything but water. This example features animated arcs that expand during initial render, visualizing coffee, tea, juice, and soda with a high-contrast, accessible color palette.
