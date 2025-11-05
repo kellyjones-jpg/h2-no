@@ -1,0 +1,144 @@
+const data = [
+  { name: 'Coffee', value: 40, color: '#6F4E37' },
+  { name: 'Tea', value: 20, color: '#D4A574' },
+  { name: 'Juice', value: 15, color: '#FF6B35' },
+  { name: 'Soda', value: 75, color: '#E63946' }
+];
+
+const width = 600, height = 600;
+const innerRadius = 80;
+const maxOuterRadius = 200;
+
+const svg = d3.select("#h2NoContainer")
+  .append("svg")
+  .attr("viewBox", `0 0 ${width} ${height}`)
+  .attr("preserveAspectRatio", "xMidYMid meet")
+  .style("font-family", "sans-serif");
+
+const g = svg.append("g")
+  .attr("transform", `translate(${width/2}, ${height/2})`);
+
+const x = d3.scaleBand()
+  .domain(data.map(d => d.name))
+  .range([0, 2 * Math.PI])
+  .align(0);
+
+const y = d3.scaleLinear()
+  .domain([0, d3.max(data, d => d.value)])
+  .range([innerRadius, maxOuterRadius]);
+
+const arc = d3.arc()
+  .innerRadius(innerRadius)
+  .cornerRadius(6)
+  .padAngle(0.02)
+  .padRadius(innerRadius);
+
+// Arcs with initial outerRadius = innerRadius (collapsed)
+const arcs = g.selectAll("path")
+  .data(data)
+  .join("path")
+  .attr("fill", d => d.color)
+  .attr("tabindex", 0)
+  .attr("aria-label", d => `${d.name}, ${d.value} cups`)
+  .attr("d", d => arc({
+    startAngle: x(d.name),
+    endAngle: x(d.name) + x.bandwidth(),
+    innerRadius: innerRadius,
+    outerRadius: innerRadius
+  }));
+
+const horizPadding = 30;
+
+// Labels below arcs 
+g.append("g")
+  .selectAll("text")
+  .data(data)
+  .join("text")
+  .attr("text-anchor", "middle")
+  .attr("font-size", 16)
+  .attr("fill", "black")
+  .attr("x", d => {
+    const midAngle = (x(d.name) + x.bandwidth() / 2) - Math.PI / 2;
+    let baseX = Math.cos(midAngle) * (y(d.value) + 30);
+    if (d.name === "Juice") {
+      baseX -= horizPadding; 
+    } else if (d.name === "Tea") {
+      baseX += horizPadding; 
+    }
+    return baseX;
+  })
+  .attr("y", d => {
+    const midAngle = (x(d.name) + x.bandwidth() / 2) - Math.PI / 2;
+    return Math.sin(midAngle) * (y(d.value) + 30);
+  })
+  .text(d => d.name.replace('\n', ' '));
+
+// Group for values inside arcs
+const valuesGroup = g.append("g");
+
+// One text element per arc
+const valueTexts = valuesGroup.selectAll("text")
+  .data(data)
+  .join("text")
+  .attr("class", "value-text")
+  .attr("text-anchor", "middle")
+  .attr("alignment-baseline", "middle")
+  .style("font-size", "20px")
+  .style("pointer-events", "none")
+  .attr("fill", d => {
+    // If color is dark, white text, else black
+    const c = d.color.replace('#','');
+    const r = parseInt(c.substring(0,2),16);
+    const gVal = parseInt(c.substring(2,4),16);
+    const b = parseInt(c.substring(4,6),16);
+    const brightness = (r*299 + gVal*587 + b*114) / 1000;
+    return brightness < 120 ? 'white' : 'black';
+  })
+  .attr("x", d => {
+    const midAngle = (x(d.name) + x.bandwidth()/2) - Math.PI / 2;
+    return Math.cos(midAngle) * (innerRadius + (y(d.value) - innerRadius)/2);
+  })
+  .attr("y", d => {
+    const midAngle = (x(d.name) + x.bandwidth()/2) - Math.PI / 2;
+    return Math.sin(midAngle) * (innerRadius + (y(d.value) - innerRadius)/2);
+  })
+  .text("0"); 
+
+// Center title
+g.append("text")
+  .attr("text-anchor", "middle")
+  .attr("dominant-baseline", "middle")
+  .style("font-size", "32px")
+  .selectAll("tspan")
+  .data(["H2-No", "Demo"])
+  .enter()
+  .append("tspan")
+  .attr("x", 0)
+  .attr("dy", (d,i) => i === 0 ? "-0.8em" : "1.2em")
+  .text(d => d);
+
+// Animate arc growth and number count
+const duration = 2000;
+arcs.transition()
+  .duration(duration)
+  .attrTween("d", function(d) {
+    const interpolateOuter = d3.interpolate(innerRadius, y(d.value));
+    return function(t) {
+      return arc({
+        startAngle: x(d.name),
+        endAngle: x(d.name) + x.bandwidth(),
+        innerRadius: innerRadius,
+        outerRadius: interpolateOuter(t)
+      });
+    }
+  });
+
+valueTexts.transition()
+  .duration(duration)
+  .tween("text", function(d) {
+    const that = d3.select(this);
+    const i = d3.interpolateNumber(0, d.value);
+    return function(t) {
+      that.text(Math.floor(i(t)));
+    }
+  });
